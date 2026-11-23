@@ -31,11 +31,20 @@ manifest.webmanifest  manifesto PWA (instalável)
 sw.js                 service worker (cache offline)
 icon.svg / -192/-512  ícones do app
 CREDITS.md            licença e créditos dos áudios
-test_*.py             testes Playwright (replay, RMS, offline, visualizador…)
+test_*.py             testes Playwright (replay, RMS, offline, cache, deploy…)
 README.md             este arquivo
 ```
 
 ## Como usar
+
+**0. App publicado (recomendado) — roda offline no celular**
+
+<https://heltonhb.github.io/sonoplastia/>
+
+No Android, abra a URL no Chrome → menu **⋮** → **“Instalar app”** (ou
+“Adicionar à tela inicial”). Depois da **primeira visita**, o app funciona
+**sem nenhuma rede**: o service worker baixa a página, os ícones e os 8 MP3
+(`sonoplay-v7`) e o modo avião não muda nada.
 
 **1. Abra o arquivo** — basta abrir `index.html` no navegador.
 
@@ -52,6 +61,9 @@ python3 -m http.server 8090
 
 > O cache offline só ativa em `http://`/`https://`. Aberto como `file://` o
 > app funciona normalmente, apenas sem instalar.
+> **Atenção:** no celular, `http://<ip-do-pc>` **não** ativa o service worker —
+> ele exige `https://` ou `localhost`. Por isso o **item 0** (app publicado)
+> é o caminho pra instalar e rodar offline.
 
 ## Controles
 
@@ -122,6 +134,8 @@ Validado com Playwright em viewport de celular (390×844), largo e paisagem:
   volume exclusivo dele altera o RMS em tempo real (`test_loop.py`)
 - Botão Parar encerra tudo · zero erros de console
 - Service worker registrado e cache offline funcionando
+- **App publicado (HTTPS)**: SW ativo, 8/8 sons vêm do cache e toca com a
+  rede **desligada** (modo avião) — `test_deploy.py`
 
 ## Estrutura do som (fallback sintético)
 
