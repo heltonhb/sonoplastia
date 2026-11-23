@@ -29,17 +29,20 @@ def run(args, **kw):
     return subprocess.run(args, check=True, capture_output=True, **kw)
 
 
-def main():
-    start = float(sys.argv[1])
-    out = sys.argv[2]
-    if not os.path.exists(SRC):
-        run(["curl", "-sSL", "-m", "90", "-A", "Mozilla/5.0", SRC_URL, "-o", SRC])
+def process(src, out, start=None, dur=None):
+    """Corta (opcional) e aplica a cadeia padrão do app -> MP3 192k/44,1 estéreo.
 
+    Retorna o dicionário de medição do loudnorm final.
+    """
     with tempfile.TemporaryDirectory() as td:
         cut = os.path.join(td, "cut.wav")
-        run(["ffmpeg", "-v", "error", "-y",
-             "-ss", str(start), "-t", str(CUT), "-i", SRC,
-             "-ar", "44100", "-ac", "2", cut])
+        cmd = ["ffmpeg", "-v", "error", "-y"]
+        if start is not None:
+            cmd += ["-ss", str(start)]
+        if dur is not None:
+            cmd += ["-t", str(dur)]
+        cmd += ["-i", src, "-ar", "44100", "-ac", "2", cut]
+        run(cmd)
 
         # passo 1: medir loudness do trecho cortado
         m = run(["ffmpeg", "-v", "info", "-i", cut,
@@ -62,9 +65,18 @@ def main():
 
     r = run(["ffmpeg", "-v", "info", "-i", out,
              "-af", "loudnorm=print_format=json", "-f", "null", "-"]).stderr.decode()
-    j = json.loads(r[r.rindex("{"):r.rindex("}") + 1])
-    print(f"{out}: {j['input_i']} LUFS · pico {j['input_tp']} dBTP · "
+    final = json.loads(r[r.rindex("{"):r.rindex("}") + 1])
+    print(f"{out}: {final['input_i']} LUFS · pico {final['input_tp']} dBTP · "
           f"{os.path.getsize(out)//1024} KB")
+    return final
+
+
+def main():
+    start = float(sys.argv[1])
+    out = sys.argv[2]
+    if not os.path.exists(SRC):
+        run(["curl", "-sSL", "-m", "90", "-A", "Mozilla/5.0", SRC_URL, "-o", SRC])
+    process(SRC, out, start=start, dur=CUT)
 
 
 if __name__ == "__main__":

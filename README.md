@@ -32,6 +32,8 @@ sw.js                 service worker (cache offline)
 icon.svg / -192/-512  ícones do app
 CREDITS.md            licença e créditos dos áudios
 test_*.py             testes Playwright (replay, RMS, offline, cache, deploy…)
+troca_som.py          troca um efeito: processa + backup + quebra de cache
+make_melancolico.py   cadeia de processamento de áudio (spec do app)
 README.md             este arquivo
 ```
 
@@ -99,6 +101,33 @@ Todos os arquivos foram tratados com ffmpeg para volumes consistentes:
 
 Medido após o processamento: loudness **−18,2 a −21,3 LUFS** (variação ≤ 3 dB)
 e pico **−2,2 a −7,5 dBFS**, sem clipping.
+
+## Trocar um efeito sonoro
+
+```bash
+# 1) troca o áudio — processa, faz backup e quebra o cache, tudo junto
+python3 troca_som.py ~/Downloads/novo-som.mp3 07-porta
+python3 troca_som.py trilha.mp3 08 --inicio 38 --dur 12   # com corte
+
+# 2) testa
+python3 test_cache.py && python3 test_sonoplay.py
+
+# 3) publica (GitHub Pages fica no ar em ~1 min)
+git add -A && git commit -m "troca o efeito 07" && git push
+```
+
+O script faz o backup do arquivo atual em `audio_original_backup/`, aplica a
+mesma cadeia da spec (compressor + `loudnorm` −18 LUFS / −2 dBTP + MP3
+192 kbps / 44,1 kHz) e **incrementa `AUDIO_VER` no `index.html` e `V` +
+`CACHE` no `sw.js`**. Esse último passo é obrigatório: sem ele, o celular
+continua com o áudio antigo preso no cache (é o mesmo bug do `?v=`).
+
+**Na mão**, o fluxo é o mesmo: substitua o MP3 mantendo o nome → incremente
+os três números → teste → `git push`.
+
+> Se o arquivo novo tiver **outro nome**, atualize também o campo `file:` do
+> efeito em `EFFECTS` (index.html) e a lista `ASSETS` no `sw.js`.
+> Áudios novos de terceiros: confira a licença e registre em `CREDITS.md`.
 
 ## API pública
 
