@@ -1,0 +1,1070 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0b0f16">
+<meta name="description" content="SonoPlay — bancada de efeitos sonoros para celular. Toque cada efeito com um botão.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SonoPlay">
+<title>SonoPlay — Efeitos Sonoros</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<style>
+  :root{
+    --bg:#0b0f16;
+    --bg2:#111826;
+    --card:#161f30;
+    --card2:#1c2740;
+    --line:#26324b;
+    --txt:#e8eefb;
+    --dim:#8ea0c0;
+    --accent:#4cc9f0;
+    --accent2:#7b8cff;
+    --hot:#ff5d73;
+    --pad-x: clamp(12px, 4vw, 28px);
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html{
+    margin:0; padding:0;
+    background:
+      radial-gradient(1200px 600px at 50% -10%, #1a2740 0%, transparent 60%),
+      linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
+    background-color:var(--bg);
+  }
+  body{
+    color:var(--txt);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+    margin:0; padding:0;
+    overscroll-behavior-y:none;
+    padding-bottom: calc(24px + env(safe-area-inset-bottom));
+    user-select:none; -webkit-user-select:none;
+  }
+  .wrap{ max-width:820px; margin:0 auto; padding: calc(14px + env(safe-area-inset-top)) var(--pad-x) 0; }
+
+  /* ---------- header ---------- */
+  header{ display:flex; align-items:center; gap:12px; margin-bottom:14px; }
+  .logo{
+    width:42px; height:42px; border-radius:12px; flex:0 0 auto;
+    background:linear-gradient(135deg, var(--accent), var(--accent2));
+    display:grid; place-items:center; font-size:22px;
+    box-shadow:0 6px 22px rgba(76,201,240,.28);
+  }
+  h1{ font-size:19px; margin:0; letter-spacing:.2px; font-weight:700; }
+  .sub{ font-size:12px; color:var(--dim); margin-top:2px; }
+
+  /* ---------- visualizer ---------- */
+  .viz{
+    position:relative; border:1px solid var(--line); border-radius:16px;
+    background:linear-gradient(180deg,#0e1524,#0b1120);
+    overflow:hidden; height:86px; margin-bottom:14px;
+  }
+  .viz canvas{ display:block; width:100%; height:100%; }
+  .viz .now{
+    position:absolute; left:12px; top:9px; font-size:11px; letter-spacing:.14em;
+    text-transform:uppercase; color:var(--dim); pointer-events:none;
+  }
+  .viz .now b{ color:var(--accent); font-weight:600; }
+  .viz .idle{
+    position:absolute; inset:0; display:grid; place-items:center;
+    font-size:12px; color:#6b7ea6; letter-spacing:.08em; pointer-events:none;
+    transition:opacity .25s;
+  }
+  .viz .idle span{
+    background:rgba(11,17,32,.85); padding:3px 12px; border-radius:999px;
+    border:1px solid rgba(255,255,255,.05);
+  }
+  .viz.playing .idle{ opacity:0; }
+
+  /* ---------- controls row ---------- */
+  .controls{ display:flex; gap:10px; align-items:center; margin-bottom:16px; }
+  .vol{
+    flex:1; display:flex; align-items:center; gap:9px;
+    background:var(--card); border:1px solid var(--line);
+    border-radius:12px; padding:9px 12px;
+  }
+  .vol span{ font-size:15px; }
+  input[type=range]{
+    -webkit-appearance:none; appearance:none; width:100%; height:4px; border-radius:4px;
+    background:#2b374f; outline:none;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; width:20px; height:20px; border-radius:50%;
+    background:#fff; border:3px solid var(--accent); cursor:pointer;
+    box-shadow:0 2px 8px rgba(0,0,0,.4);
+  }
+  input[type=range]::-moz-range-thumb{
+    width:16px; height:16px; border-radius:50%; background:#fff;
+    border:3px solid var(--accent); cursor:pointer;
+  }
+  .stop{
+    flex:0 0 auto; border:1px solid #4a2530; background:#2a1620; color:#ff8a9b;
+    border-radius:12px; padding:11px 15px; font-size:13px; font-weight:600;
+    display:flex; align-items:center; gap:7px; cursor:pointer;
+    transition:transform .08s, background .15s;
+  }
+  .stop:active{ transform:scale(.95); }
+  .stop.on{ background:#3d1b26; border-color:#7a3346; }
+
+  /* ---------- volume exclusivo do suspense ---------- */
+  .sus-row{ margin-top:-6px; }
+  .vol-label{ font-size:12px; font-weight:600; color:var(--dim); white-space:nowrap; }
+  .loop-tag{
+    flex:0 0 auto; font-size:11px; font-weight:700; letter-spacing:.05em;
+    color:#c9a7ff; background:rgba(155,89,255,.14);
+    border:1px solid rgba(155,89,255,.38); border-radius:999px; padding:4px 10px;
+  }
+
+  /* ---------- grid ---------- */
+  .grid{ display:grid; grid-template-columns:repeat(2, 1fr); gap:11px; }
+  @media (min-width:560px){ .grid{ grid-template-columns:repeat(3,1fr); } }
+  @media (min-width:820px){ .grid{ grid-template-columns:repeat(4,1fr); } }
+
+  .fx{
+    position:relative; overflow:hidden;
+    border:1px solid var(--line); border-radius:16px;
+    background:linear-gradient(165deg, var(--card2), var(--card));
+    color:var(--txt); text-align:left; cursor:pointer;
+    padding:14px 13px 13px; min-height:112px;
+    display:flex; flex-direction:column; gap:6px;
+    font-family:inherit;
+    transition: transform .09s ease, border-color .2s, box-shadow .2s;
+    touch-action:manipulation;
+  }
+  .fx:active{ transform:scale(.96); }
+  .fx .ico{
+    font-size:27px; line-height:1; filter:drop-shadow(0 3px 8px rgba(0,0,0,.35));
+    transition:transform .2s;
+  }
+  .fx .name{ font-size:13.5px; font-weight:650; line-height:1.25; letter-spacing:.1px; }
+  .fx .desc{ font-size:11px; color:var(--dim); line-height:1.3; margin-top:auto; }
+  .fx .bar{
+    position:absolute; left:0; bottom:0; height:3px; width:0%;
+    background:linear-gradient(90deg, var(--accent), var(--accent2));
+    box-shadow:0 0 12px var(--accent);
+  }
+  .fx::after{
+    content:""; position:absolute; inset:0; border-radius:16px;
+    background:radial-gradient(120px 70px at 20% 0%, var(--gl, rgba(76,201,240,.20)), transparent 70%);
+    opacity:.75; pointer-events:none;
+  }
+  .fx.playing{
+    border-color:var(--accent);
+    box-shadow:0 0 0 1px var(--accent), 0 10px 30px rgba(76,201,240,.18);
+  }
+  .fx.playing .ico{ animation:bob .6s ease-in-out infinite alternate; }
+  .fx.playing .bar{ animation:fill var(--dur,2s) linear forwards; }
+  .fx.playing.loop .bar{ animation:fill var(--dur,2s) linear infinite; }
+  .loop-badge{
+    position:absolute; top:9px; right:10px; z-index:1;
+    font-size:11px; font-weight:700; color:#c9a7ff; line-height:1;
+    background:rgba(155,89,255,.16); border:1px solid rgba(155,89,255,.42);
+    border-radius:999px; padding:3px 8px;
+  }
+  @keyframes bob{ from{ transform:translateY(0) } to{ transform:translateY(-4px) } }
+  @keyframes fill{ from{ width:0% } to{ width:100% } }
+
+  footer{ margin-top:20px; font-size:11px; color:#54648a; text-align:center; line-height:1.6; }
+  .hint{
+    margin-top:14px; font-size:11.5px; color:var(--dim); text-align:center;
+    background:var(--card); border:1px dashed var(--line); border-radius:12px; padding:9px 12px;
+  }
+  .hint[hidden]{ display:none; }
+  #loadNote{ margin-top:0; border-style:solid; border-color:#3a4a2e; color:#a7d69a; }
+  #loadNote.warn{ border-color:#5a4526; color:#f0c674; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="logo">🎧</div>
+    <div>
+      <h1>SonoPlay</h1>
+      <div class="sub">Bancada de efeitos sonoros · toque para reproduzir</div>
+    </div>
+  </header>
+
+  <div class="viz" id="viz">
+    <div class="now">No ar: <b id="nowPlaying">—</b></div>
+    <canvas id="scope"></canvas>
+    <div class="idle"><span>toque em um botão</span></div>
+  </div>
+
+  <div class="controls">
+    <label class="vol" aria-label="Volume geral">
+      <span id="volIcon">🔊</span>
+      <input type="range" id="vol" min="0" max="100" value="80">
+    </label>
+    <button class="stop" id="stopBtn" type="button">■ Parar</button>
+  </div>
+
+  <div class="controls sus-row">
+    <label class="vol" aria-label="Volume só do suspense">
+      <span>😰</span>
+      <b class="vol-label">Suspense</b>
+      <input type="range" id="susVol" min="0" max="100" value="100">
+    </label>
+    <span class="loop-tag" title="Este efeito repete em loop">∞ loop</span>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <div class="hint" id="loadNote" hidden></div>
+  <div class="hint" id="hint">Toque em qualquer botão para ativar o áudio do aparelho.</div>
+
+  <footer>
+    Sons reais da Mixkit (Mixkit Sound Effects e Stock Music Free Licenses).<br>
+    Normalizados a −18 LUFS · funciona offline · adicione à tela inicial para usar como app.
+  </footer>
+</div>
+
+<script>
+"use strict";
+
+/* =========================================================
+   Áudio — contexto, master, reverb e utilitários
+   ========================================================= */
+let ctx = null, master = null, analyser = null, reverbIn = null, noiseBuf = null;
+let freqData = null;
+const active = {};             // buttonId -> { fx, run, sources, timers, bus, send }
+
+const AC = window.AudioContext || window.webkitAudioContext;
+
+function makeNoiseBuffer(sec){
+  const rate = ctx.sampleRate, len = Math.floor(rate * sec);
+  const buf = ctx.createBuffer(1, len, rate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+  return buf;
+}
+
+function makeImpulse(sec, decay){
+  const rate = ctx.sampleRate, len = Math.floor(rate * sec);
+  const buf = ctx.createBuffer(2, len, rate);
+  for (let c = 0; c < 2; c++){
+    const d = buf.getChannelData(c);
+    for (let i = 0; i < len; i++){
+      d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay);
+    }
+  }
+  return buf;
+}
+
+function initAudio(){
+  if (ctx) return;
+  ctx = new AC();
+
+  master = ctx.createGain();
+  master.gain.value = 0.8;
+
+  analyser = ctx.createAnalyser();
+  analyser.fftSize = 2048;
+  analyser.smoothingTimeConstant = 0.75;
+  freqData = new Uint8Array(analyser.frequencyBinCount);
+
+  const comp = ctx.createDynamicsCompressor();
+  comp.threshold.value = -14;
+  comp.knee.value = 22;
+  comp.ratio.value = 5;
+  comp.attack.value = 0.004;
+  comp.release.value = 0.22;
+
+  // reverb
+  reverbIn = ctx.createGain();
+  reverbIn.gain.value = 1;
+  const conv = ctx.createConvolver();
+  conv.buffer = makeImpulse(2.6, 3.0);
+  const revOut = ctx.createGain();
+  revOut.gain.value = 0.9;
+  reverbIn.connect(conv); conv.connect(revOut); revOut.connect(master);
+
+  master.connect(comp);
+  comp.connect(analyser);
+  analyser.connect(ctx.destination);
+
+  noiseBuf = makeNoiseBuffer(2.0);
+}
+
+async function ensureAudio(){
+  initAudio();
+  if (ctx.state === "suspended"){
+    try { await ctx.resume(); } catch(e){}
+  }
+  return ctx;
+}
+
+/* ---------- helpers de síntese ---------- */
+function gain(v){ const g = ctx.createGain(); g.gain.value = v; return g; }
+function biquad(type, freq, Q){
+  const f = ctx.createBiquadFilter();
+  f.type = type; f.frequency.value = freq;
+  if (Q != null) f.Q.value = Q;
+  return f;
+}
+function osc(fx, type, when, dur, freq){
+  const o = ctx.createOscillator();
+  o.type = type;
+  if (freq != null && freq !== undefined) o.frequency.setValueAtTime(freq, when);
+  o.start(when);
+  o.stop(when + dur);
+  fx.sources.push(o);
+  return o;
+}
+function noise(fx, when, dur){
+  const s = ctx.createBufferSource();
+  s.buffer = noiseBuf;
+  s.loop = true;
+  s.start(when, Math.random() * 1.4);
+  s.stop(when + dur);
+  fx.sources.push(s);
+  return s;
+}
+function lfo(fx, when, dur, rate, depth, target){
+  const o = osc(fx, "sine", when, dur, rate);
+  const g = gain(depth);
+  o.connect(g); g.connect(target);
+  return g;
+}
+function rampLin(param, pts){
+  param.cancelScheduledValues(pts[0][0]);
+  param.setValueAtTime(pts[0][1], pts[0][0]);
+  for (let i = 1; i < pts.length; i++) param.linearRampToValueAtTime(pts[i][1], pts[i][0]);
+}
+function rampExp(param, pts){
+  param.cancelScheduledValues(pts[0][0]);
+  param.setValueAtTime(Math.max(pts[0][1], 1e-5), pts[0][0]);
+  for (let i = 1; i < pts.length; i++){
+    param.exponentialRampToValueAtTime(Math.max(pts[i][1], 1e-5), pts[i][0]);
+  }
+}
+function ping(fx, when, freq, dur, vol, type){
+  const o = osc(fx, type || "sine", when, dur + 0.06, freq);
+  const g = gain(0.0001);
+  o.connect(g); g.connect(fx.bus);
+  rampExp(g.gain, [[when, 0.0001], [when + 0.006, vol], [when + dur, 0.0001]]);
+  return o;
+}
+function attach(g, fx){ g.connect(fx.bus); return g; }
+
+/* =========================================================
+   EFEITOS
+   ========================================================= */
+
+/* 1 — Tempestade forte e vento uivando */
+function playStorm(fx){
+  const t = ctx.currentTime + 0.04, D = 7.5;
+  fx.send.gain.value = 0.30;
+
+  // camada de vento uivando (bandpass estreito com varredura)
+  const bp = biquad("bandpass", 420, 7);
+  const wg = attach(gain(0.0001), fx);
+  bp.connect(wg);
+  noise(fx, t, D).connect(bp);
+  bp.frequency.setValueAtTime(420, t);
+  bp.frequency.linearRampToValueAtTime(980, t + 2.2);
+  bp.frequency.linearRampToValueAtTime(520, t + 4.0);
+  bp.frequency.linearRampToValueAtTime(1180, t + 6.2);
+  bp.frequency.linearRampToValueAtTime(700, t + D);
+  rampLin(wg.gain, [[t, 0.0001], [t + 1.5, 0.34], [t + D - 1.8, 0.30], [t + D, 0.0001]]);
+  lfo(fx, t, D, 0.23, 0.15, wg.gain);   // rajadas lentas
+  lfo(fx, t, D, 0.11, 0.10, wg.gain);   // rajadas superpostas
+  lfo(fx, t, D, 5.5, 130, bp.frequency); // tremulação do uivo
+
+  // assobio fino, camada alta
+  const bp2 = biquad("bandpass", 1500, 15);
+  const wg2 = attach(gain(0.0001), fx);
+  bp2.connect(wg2);
+  noise(fx, t, D).connect(bp2);
+  bp2.frequency.setValueAtTime(1500, t);
+  bp2.frequency.linearRampToValueAtTime(2450, t + 3);
+  bp2.frequency.linearRampToValueAtTime(1750, t + D);
+  rampLin(wg2.gain, [[t, 0.0001], [t + 2, 0.10], [t + 5, 0.15], [t + D, 0.0001]]);
+  lfo(fx, t, D, 0.17, 0.07, wg2.gain);
+
+  // leito grave de trovão/chuva
+  const lp = biquad("lowpass", 130, 0.8);
+  const rg = attach(gain(0.0001), fx);
+  lp.connect(rg);
+  noise(fx, t, D).connect(lp);
+  rampLin(rg.gain, [[t, 0.0001], [t + 1, 0.52], [t + D - 1.5, 0.42], [t + D, 0.0001]]);
+  lfo(fx, t, D, 0.31, 0.12, rg.gain);
+
+  // trovões
+  [1.6, 4.7].forEach(off => {
+    const w = t + off;
+    const tlp = biquad("lowpass", 900, 0.6);
+    const g = attach(gain(0.0001), fx);
+    tlp.connect(g);
+    noise(fx, w, 2.6).connect(tlp);
+    tlp.frequency.setValueAtTime(1300, w);
+    tlp.frequency.exponentialRampToValueAtTime(90, w + 1.7);
+    rampExp(g.gain, [[w, 0.0001], [w + 0.02, 0.8], [w + 2.4, 0.0001]]);
+    // estalo inicial
+    const chp = biquad("highpass", 2000, 0.7);
+    const cg = attach(gain(0.0001), fx);
+    chp.connect(cg);
+    noise(fx, w, 0.25).connect(chp);
+    rampExp(cg.gain, [[w, 0.0001], [w + 0.01, 0.34], [w + 0.22, 0.0001]]);
+  });
+  return D;
+}
+
+/* 2 — Três batidas fortes, secas e pausadas */
+function playHits(fx){
+  const t = ctx.currentTime + 0.04, D = 2.6;
+  fx.send.gain.value = 0.34;
+
+  [0, 0.8, 1.6].forEach((off, i) => {
+    const w = t + off;
+    const vol = [1.0, 0.9, 1.0][i];
+
+    // corpo grave
+    const o = osc(fx, "sine", w, 0.42, 155);
+    o.frequency.exponentialRampToValueAtTime(42, w + 0.22);
+    const g = attach(gain(0.0001), fx);
+    o.connect(g);
+    rampExp(g.gain, [[w, 0.0001], [w + 0.006, vol], [w + 0.36, 0.0001]]);
+
+    // estalo seco (ataque)
+    const hp = biquad("highpass", 1500, 0.7);
+    const ng = attach(gain(0.0001), fx);
+    hp.connect(ng);
+    noise(fx, w, 0.09).connect(hp);
+    rampExp(ng.gain, [[w, 0.0001], [w + 0.004, 0.6 * vol], [w + 0.07, 0.0001]]);
+
+    // madeira/pano — médio
+    const bp = biquad("bandpass", 330, 1.2);
+    const g2 = attach(gain(0.0001), fx);
+    bp.connect(g2);
+    noise(fx, w, 0.15).connect(bp);
+    rampExp(g2.gain, [[w, 0.0001], [w + 0.01, 0.65 * vol], [w + 0.14, 0.0001]]);
+  });
+  return D;
+}
+
+/* 3 — Suspense / tensão fraca e aumentada */
+function playSuspense(fx){
+  const t = ctx.currentTime + 0.04, D = 6.5;
+  fx.send.gain.value = 0.42;
+
+  // drone grave dissonante
+  const lp = biquad("lowpass", 250, 3);
+  const droneG = attach(gain(0.0001), fx);
+  lp.connect(droneG);
+  [55, 55.9, 82.4].forEach(f => osc(fx, "sawtooth", t, D, f).connect(lp));
+  rampLin(droneG.gain, [[t, 0.0001], [t + 2.2, 0.10], [t + 5.6, 0.44], [t + D, 0.0001]]);
+  rampLin(lp.frequency, [[t, 240], [t + 5.6, 1500], [t + D, 750]]);
+  lfo(fx, t, D, 5.5, 0.10, droneG.gain);   // tremolo de ansiedade
+  lfo(fx, t, D, 0.19, 0.07, droneG.gain);
+
+  // tom ascendente de tensão
+  const riseLp = biquad("lowpass", 1800, 1);
+  const riseG = attach(gain(0.0001), fx);
+  riseLp.connect(riseG);
+  const r1 = osc(fx, "triangle", t, D, 220);
+  r1.frequency.exponentialRampToValueAtTime(720, t + D - 0.4);
+  const r2 = osc(fx, "sine", t, D, 441);
+  r2.frequency.exponentialRampToValueAtTime(1440, t + D - 0.4);
+  r1.connect(riseLp); r2.connect(riseLp);
+  rampLin(riseG.gain, [[t, 0.0001], [t + 3, 0.035], [t + D - 0.5, 0.17], [t + D, 0.0001]]);
+  lfo(fx, t, D, 6.5, 0.05, riseG.gain);
+
+  // golpe final sutil
+  const w = t + D - 0.55;
+  const o = osc(fx, "sine", w, 0.6, 90);
+  o.frequency.exponentialRampToValueAtTime(34, w + 0.45);
+  const g = attach(gain(0.0001), fx);
+  o.connect(g);
+  rampExp(g.gain, [[w, 0.0001], [w + 0.01, 0.7], [w + 0.55, 0.0001]]);
+  return D;
+}
+
+/* 4 — Coisas quebrando (xícaras, garrafas…) */
+function playBreak(fx){
+  const t = ctx.currentTime + 0.04, D = 2.5;
+  fx.send.gain.value = 0.46;
+
+  // impacto inicial do objeto
+  const th = osc(fx, "sine", t, 0.32, 185);
+  th.frequency.exponentialRampToValueAtTime(70, t + 0.26);
+  const tg = attach(gain(0.0001), fx);
+  th.connect(tg);
+  rampExp(tg.gain, [[t, 0.0001], [t + 0.01, 0.5], [t + 0.3, 0.0001]]);
+
+  // estouro / trinca
+  const smBp = biquad("bandpass", 2400, 0.8);
+  const smG = attach(gain(0.0001), fx);
+  smBp.connect(smG);
+  noise(fx, t, 0.5).connect(smBp);
+  rampExp(smG.gain, [[t, 0.0001], [t + 0.006, 0.95], [t + 0.38, 0.0001]]);
+
+  // cacos voando (pings aleatórios)
+  for (let i = 0; i < 28; i++){
+    const w = t + 0.08 + Math.random() * 1.5;
+    const f = 1600 + Math.random() * 4300;
+    const dur = 0.06 + Math.random() * 0.22;
+    const vol = 0.04 + Math.random() * 0.14;
+    ping(fx, w, f, dur, vol, Math.random() < 0.3 ? "triangle" : "sine");
+    if (Math.random() < 0.55){
+      const hp = biquad("highpass", 2600, 0.7);
+      const g = attach(gain(0.0001), fx);
+      hp.connect(g);
+      noise(fx, w, 0.06).connect(hp);
+      rampExp(g.gain, [[w, 0.0001], [w + 0.004, vol * 0.8], [w + 0.05, 0.0001]]);
+    }
+  }
+
+  // assentamento dos pedaços
+  for (let i = 0; i < 6; i++){
+    ping(fx, t + 1.65 + i * 0.11 + Math.random() * 0.08, 2400 + Math.random() * 3200, 0.3, 0.05 + Math.random() * 0.05);
+  }
+  return D;
+}
+
+/* 5 — Janela se abrindo */
+function playWindow(fx){
+  const t = ctx.currentTime + 0.04, D = 1.75;
+  fx.send.gain.value = 0.30;
+  const SLIDE = 0.95;
+
+  const bp = biquad("bandpass", 750, 5);
+  const g = attach(gain(0.0001), fx);
+  bp.connect(g);
+  noise(fx, t, SLIDE + 0.12).connect(bp);
+  bp.frequency.setValueAtTime(750, t);
+  bp.frequency.linearRampToValueAtTime(1550, t + SLIDE * 0.7);
+  bp.frequency.linearRampToValueAtTime(1150, t + SLIDE);
+  rampLin(g.gain, [[t, 0.0001], [t + 0.12, 0.26], [t + SLIDE - 0.1, 0.32], [t + SLIDE, 0.0001]]);
+  lfo(fx, t, SLIDE, 14, 0.09, g.gain);  // atrito/borracha da peça
+
+  // batida ao encostar
+  const b = t + SLIDE + 0.02;
+  const o = osc(fx, "sine", b, 0.3, 175);
+  o.frequency.exponentialRampToValueAtTime(74, b + 0.2);
+  const og = attach(gain(0.0001), fx);
+  o.connect(og);
+  rampExp(og.gain, [[b, 0.0001], [b + 0.01, 0.45], [b + 0.28, 0.0001]]);
+
+  // clique do trinco
+  const hp = biquad("highpass", 2700, 0.7);
+  const cg = attach(gain(0.0001), fx);
+  hp.connect(cg);
+  noise(fx, b, 0.07).connect(hp);
+  rampExp(cg.gain, [[b, 0.0001], [b + 0.005, 0.34], [b + 0.06, 0.0001]]);
+  return D;
+}
+
+/* 6 — Passos leves no chão */
+function playSteps(fx){
+  const t = ctx.currentTime + 0.04, D = 3.2;
+  fx.send.gain.value = 0.26;
+
+  [0, 0.5, 1.0, 1.5, 2.0, 2.5].forEach(off => {
+    const w = t + off;
+    const vol = 0.30 + Math.random() * 0.10;
+
+    // sola macia
+    const lp = biquad("lowpass", 620 + Math.random() * 180, 0.9);
+    const g = attach(gain(0.0001), fx);
+    lp.connect(g);
+    noise(fx, w, 0.16).connect(lp);
+    rampExp(g.gain, [[w, 0.0001], [w + 0.012, vol], [w + 0.13, 0.0001]]);
+
+    // corpo do passo
+    const o = osc(fx, "sine", w, 0.14, 88 + Math.random() * 14);
+    o.frequency.exponentialRampToValueAtTime(52, w + 0.1);
+    const og = attach(gain(0.0001), fx);
+    o.connect(og);
+    rampExp(og.gain, [[w, 0.0001], [w + 0.01, vol * 0.5], [w + 0.12, 0.0001]]);
+
+    // arranhão leve
+    const hp = biquad("highpass", 3000, 0.6);
+    const sg = attach(gain(0.0001), fx);
+    hp.connect(sg);
+    noise(fx, w, 0.045).connect(hp);
+    rampExp(sg.gain, [[w, 0.0001], [w + 0.006, vol * 0.24], [w + 0.04, 0.0001]]);
+  });
+  return D;
+}
+
+/* 7 — Porta se abrindo com um estrondo */
+function playDoor(fx){
+  const t = ctx.currentTime + 0.04;
+  const CREAK = 1.8, D = 3.0;
+  fx.send.gain.value = 0.40;
+
+  // rangido
+  const bp = biquad("bandpass", 700, 9);
+  const cG = attach(gain(0.0001), fx);
+  bp.connect(cG);
+  const c1 = osc(fx, "sawtooth", t, CREAK + 0.05, 72);
+  const c2 = osc(fx, "sawtooth", t, CREAK + 0.05, 73.6);
+  c1.connect(bp); c2.connect(bp);
+  c1.frequency.linearRampToValueAtTime(124, t + CREAK);
+  c2.frequency.linearRampToValueAtTime(118, t + CREAK);
+  lfo(fx, t, CREAK, 6.6, 17, c1.frequency);   // irregularidade do rangido
+  lfo(fx, t, CREAK, 5.1, 14, c2.frequency);
+  rampLin(cG.gain, [[t, 0.0001], [t + 0.28, 0.24], [t + 1.2, 0.32], [t + CREAK, 0.13], [t + CREAK + 0.04, 0.0001]]);
+  lfo(fx, t, CREAK, 9.5, 0.07, cG.gain);      // trêmulo
+  lfo(fx, t, CREAK, 1.3, 0.06, cG.gain);
+  bp.frequency.setValueAtTime(640, t);
+  bp.frequency.linearRampToValueAtTime(1050, t + CREAK);
+
+  // ESTRONDO
+  const B = t + CREAK + 0.14;
+  const o = osc(fx, "sine", B, 0.75, 125);
+  o.frequency.exponentialRampToValueAtTime(36, B + 0.45);
+  const og = attach(gain(0.0001), fx);
+  o.connect(og);
+  rampExp(og.gain, [[B, 0.0001], [B + 0.008, 1.0], [B + 0.62, 0.0001]]);
+
+  const blp = biquad("lowpass", 1300, 1);
+  const bg = attach(gain(0.0001), fx);
+  blp.connect(bg);
+  noise(fx, B, 0.55).connect(blp);
+  rampExp(bg.gain, [[B, 0.0001], [B + 0.01, 0.75], [B + 0.5, 0.0001]]);
+
+  // estalo do trinco depois do batente
+  ping(fx, B + 0.46, 3200, 0.07, 0.13, "triangle");
+  return D;
+}
+
+/* 8 — Som melancólico e suave */
+function playSad(fx){
+  const t = ctx.currentTime + 0.04, D = 6.5;
+  fx.send.gain.value = 0.55;
+
+  // pad menor (Lá menor)
+  const lp = biquad("lowpass", 950, 0.7);
+  const padG = attach(gain(0.0001), fx);
+  lp.connect(padG);
+  [110, 130.81, 164.81, 220].forEach((f, i) => {
+    const o = osc(fx, i < 2 ? "sine" : "triangle", t, D, f);
+    o.detune.value = (i % 2) ? 6 : -6;
+    o.connect(lp);
+  });
+  rampLin(padG.gain, [[t, 0.0001], [t + 1.5, 0.17], [t + 5.2, 0.15], [t + D, 0.0001]]);
+  lfo(fx, t, D, 0.27, 0.03, padG.gain);   // respiração
+
+  // melodia suave (caixa de música)
+  [[0.5, 329.63], [1.4, 293.66], [2.3, 261.63], [3.2, 246.94], [4.2, 220.00], [5.1, 261.63]]
+    .forEach(([off, f]) => {
+      const w = t + off;
+      const g1 = attach(gain(0.0001), fx);
+      osc(fx, "sine", w, 1.6, f).connect(g1);
+      rampExp(g1.gain, [[w, 0.0001], [w + 0.02, 0.20], [w + 1.5, 0.0001]]);
+
+      const g2 = attach(gain(0.0001), fx);
+      osc(fx, "sine", w, 0.9, f * 2).connect(g2);
+      rampExp(g2.gain, [[w, 0.0001], [w + 0.01, 0.07], [w + 0.8, 0.0001]]);
+
+      const g3 = attach(gain(0.0001), fx);
+      osc(fx, "sine", w, 0.6, f * 3.01).connect(g3);
+      rampExp(g3.gain, [[w, 0.0001], [w + 0.008, 0.03], [w + 0.5, 0.0001]]);
+    });
+  return D;
+}
+
+/* =========================================================
+   Lista de efeitos
+   ========================================================= */
+const AUDIO_DIR = "audio/";
+const AUDIO_VER = "7";   // bump: invalida cache HTTP/SW dos áudios quando trocarem
+
+const EFFECTS = [
+  { id:"storm",  icon:"🌩️", name:"Tempestade forte",    desc:"Vento uivando na tempestade",  color:"rgba(76,201,240,.26)", file:"01-tempestade.mp3",  run:playStorm   },
+  { id:"hits",   icon:"👊",  name:"Três batidas",        desc:"Fortes, secas e pausadas",     color:"rgba(255,140,60,.26)", file:"02-batidas.mp3",     run:playHits    },
+  { id:"sus",    icon:"😰",  name:"Suspense / tensão",   desc:"Fraca, aumentando aos poucos", color:"rgba(155,89,255,.26)", file:"03-suspense.mp3",    run:playSuspense, loop:true },
+  { id:"break",  icon:"🍶",  name:"Coisas quebrando",    desc:"Xícaras, garrafas e cacos",    color:"rgba(255,93,115,.26)", file:"04-quebra.mp3",      run:playBreak   },
+  { id:"window", icon:"🪟",  name:"Janela se abrindo",   desc:"Deslize e batida no trinco",   color:"rgba(62,207,142,.26)", file:"05-janela.mp3",      run:playWindow  },
+  { id:"steps",  icon:"👣",  name:"Passos leves",        desc:"Caminhada discreta no chão",   color:"rgba(255,214,102,.26)",file:"06-passos.mp3",      run:playSteps   },
+  { id:"door",   icon:"🚪",  name:"Porta + estrondo",    desc:"Rangido seguido de batida",    color:"rgba(255,120,72,.26)", file:"07-porta.mp3",       run:playDoor    },
+  { id:"sad",    icon:"🎹",  name:"Melancólico",         desc:"Piano triste com cordas",     color:"rgba(130,170,255,.26)",file:"08-melancolico.mp3", run:playSad     },
+];
+
+/* ---------- carregamento dos áudios reais ----------
+   Os MP3 são decodificados para AudioBuffer e tocados via Web Audio,
+   o que mantém o visualizador funcionando. Se algum arquivo faltar,
+   o efeito cai para a síntese original (fallback).            */
+const buffers = {};
+let loadState = "idle";   // idle | loading | done | partial
+
+async function preloadAudio(){
+  if (loadState === "loading" || loadState === "done") return loadState;
+  loadState = "loading";
+  setLoadNote("carregando sons…");
+  let ok = 0;
+  await Promise.all(EFFECTS.map(async e => {
+    try {
+      // ?v= quebra o cache HTTP do navegador; no-cache força revalidação
+      const res = await fetch(AUDIO_DIR + e.file + "?v=" + AUDIO_VER, { cache: "no-cache" });
+      if (!res.ok) throw new Error(res.status + " " + e.file);
+      const ab = await res.arrayBuffer();
+      buffers[e.id] = await ctx.decodeAudioData(ab);
+      ok++;
+    } catch (err) {
+      console.warn("[SonoPlay] áudio não carregado:", e.file, err);
+    }
+  }));
+  loadState = ok === 0 ? "failed" : (ok === EFFECTS.length ? "done" : "partial");
+  if (ok === 0){
+    setLoadNote("sons reais indisponíveis — usando sintetizador", true);
+  } else if (ok < EFFECTS.length){
+    setLoadNote("alguns sons não carregaram — sintetizador ativo", true);
+  } else {
+    setLoadNote(null);
+    document.getElementById("hint").textContent =
+      "Toque em qualquer botão para liberar o áudio do aparelho.";
+  }
+  return loadState;
+}
+
+function setLoadNote(text, sticky){
+  const el = document.getElementById("loadNote");
+  if (!el) return;
+  if (!text){ el.hidden = true; return; }
+  el.textContent = text;
+  el.hidden = false;
+  el.classList.toggle("warn", !!sticky);
+}
+
+/* =========================================================
+   Reprodução / UI
+   ========================================================= */
+const grid      = document.getElementById("grid");
+const viz       = document.getElementById("viz");
+const nowPlaying= document.getElementById("nowPlaying");
+const stopBtn   = document.getElementById("stopBtn");
+const hint      = document.getElementById("hint");
+const volSlider = document.getElementById("vol");
+const volIcon   = document.getElementById("volIcon");
+const susSlider = document.getElementById("susVol");
+
+/* volume exclusivo do suspense — persistido entre sessões */
+let susVol = 1;
+try {
+  const s = localStorage.getItem("sonoplay.susVol");
+  if (s != null) susVol = Math.max(0, Math.min(100, +s)) / 100;
+} catch(e){}
+
+function applySusVol(){
+  const v = susVol * 100;
+  susSlider.value = Math.round(v);
+  susSlider.style.background =
+    "linear-gradient(90deg,#9b59ff 0%,#c9a7ff " + v + "%,#2b374f " + v + "%)";
+  const h = active["sus"];
+  if (h && ctx) h.fx.level.gain.setTargetAtTime(susVol, ctx.currentTime, 0.02);
+  try { localStorage.setItem("sonoplay.susVol", String(Math.round(v))); } catch(e){}
+}
+susSlider.addEventListener("input", () => {
+  susVol = +susSlider.value / 100;
+  applySusVol();
+});
+
+/** cria o bus de um efeito; `vol` (0..1) é o volume individual daquele efeito */
+function newFx(vol){
+  const bus = ctx.createGain();
+  bus.gain.value = 1;
+  const level = ctx.createGain();
+  level.gain.value = vol == null ? 1 : vol;
+  bus.connect(level);
+  level.connect(master);
+  const send = ctx.createGain();
+  send.gain.value = 0.3;
+  level.connect(send);
+  send.connect(reverbIn);
+  return { bus, level, send, sources: [], timers: [] };
+}
+
+function clearPlaying(){
+  document.querySelectorAll(".fx.playing").forEach(el => {
+    el.classList.remove("playing", "loop");
+    el.style.removeProperty("--dur");
+  });
+}
+
+function stopOne(handle){
+  const { fx, sources, timers } = handle;
+  const now = ctx.currentTime;
+  try {
+    fx.bus.gain.cancelScheduledValues(now);
+    fx.bus.gain.setValueAtTime(fx.bus.gain.value, now);
+    fx.bus.gain.linearRampToValueAtTime(0.0001, now + 0.06);
+  } catch(e){}
+  sources.forEach(s => { try { s.stop(now + 0.08); } catch(e){} });
+  timers.forEach(clearTimeout);
+  setTimeout(() => {
+    try { fx.bus.disconnect(); fx.level.disconnect(); fx.send.disconnect(); } catch(e){}
+  }, 400);
+}
+
+function stopAll(){
+  const ids = Object.keys(active);
+  for (const id of ids) stopOne(active[id]);
+  Object.keys(active).forEach(id => delete active[id]);
+  clearPlaying();
+  syncStatus();
+}
+
+/** mantém "No ar", botão Parar e visualizador coerentes com active[] */
+function syncStatus(){
+  const ids = Object.keys(active);
+  stopBtn.classList.toggle("on", ids.length > 0);
+  viz.classList.toggle("playing", ids.length > 0);
+  if (ids.length === 0){
+    nowPlaying.textContent = "—";
+  } else if (ids.length === 1){
+    nowPlaying.textContent = (EFFECTS.find(e => e.id === ids[0]) || {}).name || "—";
+  } else {
+    nowPlaying.textContent = `${ids.length} tocando`;
+  }
+}
+
+async function play(effect, btn){
+  await ensureAudio();
+
+  // se esse botão já está tocando, interrompe só ele
+  const existing = active[btn.dataset.id];
+  if (existing){
+    stopOne(existing);
+    delete active[btn.dataset.id];
+    btn.classList.remove("playing", "loop");
+    btn.style.removeProperty("--dur");
+    syncStatus();
+    return;
+  }
+
+  // garante que o áudio real esteja pronto (dispara o download na 1a toque)
+  if (loadState === "idle" || loadState === "loading") await preloadAudio();
+
+  const id = btn.dataset.id;
+  const fx = newFx(effect.id === "sus" ? susVol : 1);
+  // o handle compartilha os arrays do fx: sources/timers reais para stopOne
+  active[id] = { fx, sources: fx.sources, timers: fx.timers };
+
+  let dur = 2;
+  const buf = buffers[effect.id];
+  try {
+    if (buf){
+      // ---------- caminho principal: arquivo real ----------
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      src.loop = !!effect.loop;
+      src.connect(fx.bus);
+      const when = ctx.currentTime + 0.02;
+      src.start(when);
+      fx.sources.push(src);
+      dur = buf.duration;
+    } else {
+      // ---------- fallback: síntese ----------
+      dur = effect.run(fx) || 2;
+    }
+  } catch(err){ console.error(err); }
+
+  // feedback visual
+  btn.classList.add("playing");
+  if (effect.loop) btn.classList.add("loop");
+  btn.style.setProperty("--dur", dur + "s");
+  syncStatus();
+  if (hint) hint.hidden = true;
+  if (navigator.vibrate) { try { navigator.vibrate(12); } catch(e){} }
+
+  const handle = active[id];
+  const cleanup = () => {
+    if (active[id] !== handle) return;
+    delete active[id];
+    btn.classList.remove("playing", "loop");
+    btn.style.removeProperty("--dur");
+    try { fx.bus.disconnect(); fx.level.disconnect(); fx.send.disconnect(); } catch(e){}
+    syncStatus();
+  };
+
+  if (effect.loop && buf){
+    // loop real: o buffer repete sozinho — só o stop/toggle encerra
+  } else if (effect.loop){
+    // fallback sintético: reexecuta a receita a cada ciclo
+    const tick = () => {
+      if (active[id] !== handle) return;
+      let d = dur;
+      try { d = effect.run(fx) || dur; } catch(e){ return; }
+      handle.timers.push(setTimeout(tick, d * 1000));
+    };
+    handle.timers.push(setTimeout(tick, dur * 1000));
+  } else {
+    handle.timers.push(setTimeout(cleanup, dur * 1000 + 250));
+  }
+}
+
+/* ---------- montagem dos botões ---------- */
+const btnById = {};
+EFFECTS.forEach(fx => {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "fx";
+  btn.dataset.id = fx.id;
+  btn.style.setProperty("--gl", fx.color);
+  btn.innerHTML =
+    '<span class="ico">' + fx.icon + '</span>' +
+    (fx.loop ? '<span class="loop-badge" title="Toca em loop">∞</span>' : '') +
+    '<span class="name">' + fx.name + '</span>' +
+    '<span class="desc">' + fx.desc + '</span>' +
+    '<span class="bar"></span>';
+  btn.addEventListener("click", () => play(fx, btn));
+  btnById[fx.id] = btn;
+  grid.appendChild(btn);
+});
+
+/* ---------- API pública (controle externo / automação) ---------- */
+window.SonoPlay = {
+  list: EFFECTS.map(e => ({ id: e.id, icon: e.icon, name: e.name, desc: e.desc })),
+  async play(id){
+    const e = EFFECTS.find(x => x.id === id);
+    if (!e || !btnById[id]) return false;
+    await play(e, btnById[id]);
+    return true;
+  },
+  stop(){ stopAll(); },
+  setVolume(v){
+    volSlider.value = Math.max(0, Math.min(100, Math.round(v * 100)));
+    applyVol();
+  },
+  /** volume só do suspense (0..1) — funciona inclusive enquanto toca em loop */
+  setSusVolume(v){
+    susVol = Math.max(0, Math.min(1, +v || 0));
+    applySusVol();
+  },
+  get susVolume(){ return susVol; },
+  get state(){ return ctx ? ctx.state : "closed"; },
+  get loaded(){ return { state: loadState, buffers: Object.keys(buffers).length, total: EFFECTS.length }; },
+  get current(){ return Object.keys(active).length ? Object.keys(active)[Object.keys(active).length - 1] : null; },
+  /** RMS do sinal em tempo real (0..1) — útil para medições */
+  level(){
+    if (!analyser) return 0;
+    analyser.getByteTimeDomainData(freqData);
+    let sum = 0;
+    for (let i = 0; i < freqData.length; i++){
+      const v = (freqData[i] - 128) / 128;
+      sum += v * v;
+    }
+    return Math.sqrt(sum / freqData.length);
+  }
+};
+
+
+stopBtn.addEventListener("click", async () => {
+  await ensureAudio();
+  stopAll();
+  if (navigator.vibrate) { try { navigator.vibrate([15,40,15]); } catch(e){} }
+});
+
+/* ---------- volume ---------- */
+function applyVol(){
+  const v = +volSlider.value / 100;
+  volSlider.style.setProperty("--p", (v * 100) + "%");
+  volSlider.style.background =
+    "linear-gradient(90deg,#4cc9f0 0%,#7b8cff " + (v * 100) + "%,#2b374f " + (v * 100) + "%)";
+  volIcon.textContent = v === 0 ? "🔇" : (v < 0.45 ? "🔉" : "🔊");
+  if (master) master.gain.setTargetAtTime(v, ctx.currentTime, 0.02);
+}
+volSlider.addEventListener("input", applyVol);
+
+/* ---------- visualizador ---------- */
+const canvas = document.getElementById("scope");
+const c2 = canvas.getContext("2d");
+let phase = 0;
+
+function resizeCanvas(){
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const r = canvas.getBoundingClientRect();
+  canvas.width  = Math.max(1, Math.floor(r.width  * dpr));
+  canvas.height = Math.max(1, Math.floor(r.height * dpr));
+  c2.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+window.addEventListener("resize", resizeCanvas);
+window.addEventListener("orientationchange", () => setTimeout(resizeCanvas, 250));
+
+function draw(){
+  requestAnimationFrame(draw);
+  const r = canvas.getBoundingClientRect();
+  const W = r.width, H = r.height;
+  if (!W || !H) return;
+  c2.clearRect(0, 0, W, H);
+
+  // grade sutil
+  c2.strokeStyle = "rgba(255,255,255,.045)";
+  c2.lineWidth = 1;
+  for (let x = 0; x <= W; x += 28){
+    c2.beginPath(); c2.moveTo(x, 0); c2.lineTo(x, H); c2.stroke();
+  }
+
+  if (analyser && Object.keys(active).length > 0){
+    analyser.getByteTimeDomainData(freqData);
+    const n = freqData.length;
+    const grad = c2.createLinearGradient(0, 0, W, 0);
+    grad.addColorStop(0, "#4cc9f0");
+    grad.addColorStop(1, "#7b8cff");
+    c2.strokeStyle = grad;
+    c2.lineWidth = 2.2;
+    c2.shadowColor = "rgba(76,201,240,.75)";
+    c2.shadowBlur = 10;
+    c2.beginPath();
+    for (let i = 0; i < n; i++){
+      const x = (i / (n - 1)) * W;
+      const y = H / 2 + ((freqData[i] - 128) / 128) * (H * 0.40);
+      i ? c2.lineTo(x, y) : c2.moveTo(x, y);
+    }
+    c2.stroke();
+    c2.shadowBlur = 0;
+  } else {
+    // linha de repouso com respiração
+    phase += 0.03;
+    c2.strokeStyle = "rgba(120,140,180,.45)";
+    c2.lineWidth = 1.6;
+    c2.beginPath();
+    for (let x = 0; x <= W; x += 3){
+      const y = H / 2 + Math.sin(x * 0.03 + phase) * 2.4;
+      x ? c2.lineTo(x, y) : c2.moveTo(x, y);
+    }
+    c2.stroke();
+  }
+}
+
+/* ---------- init ---------- */
+applyVol();
+applySusVol();
+resizeCanvas();
+draw();
+
+// cria o contexto (suspenso) e começa a baixar os sons na página aberta
+initAudio();
+preloadAudio();
+
+// desbloqueia o áudio na primeira interação (iOS/Android)
+["pointerdown", "touchstart", "keydown"].forEach(ev => {
+  window.addEventListener(ev, function once(){
+    ensureAudio().then(() => {
+      if (hint) hint.hidden = true;
+      preloadAudio();
+    });
+    window.removeEventListener(ev, once);
+  }, { passive:true });
+});
+
+// impede o zoom acidental ao tocar duas vezes
+document.addEventListener("dblclick", e => e.preventDefault(), { passive:false });
+
+// registra service worker (só via http/https)
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")){
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
